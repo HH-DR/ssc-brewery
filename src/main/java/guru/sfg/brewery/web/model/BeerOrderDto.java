@@ -17,14 +17,12 @@
 
 package guru.sfg.brewery.web.model;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+
 
 @Data
 @NoArgsConstructor

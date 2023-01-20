@@ -43,6 +43,8 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Beer extends BaseEntity {
 
+
+
     @Builder
     public Beer(UUID id, Long version, Timestamp createdDate, Timestamp lastModifiedDate, String beerName,
                 BeerStyleEnum beerStyle, String upc, Integer minOnHand,

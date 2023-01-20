@@ -21,11 +21,17 @@ import guru.sfg.brewery.domain.BeerOrderLine;
 import guru.sfg.brewery.web.model.BeerOrderLineDto;
 import org.mapstruct.DecoratedWith;
 import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
 
 @Mapper(uses = {DateMapper.class})
 @DecoratedWith(BeerOrderLineMapperDecorator.class)
 public interface BeerOrderLineMapper {
+
+    BeerOrderLineMapper INSTANCE = Mappers.getMapper(BeerOrderLineMapper.class);
+
     BeerOrderLineDto beerOrderLineToDto(BeerOrderLine line);
 
     BeerOrderLine dtoToBeerOrderLine(BeerOrderLineDto dto);
+
+
 }

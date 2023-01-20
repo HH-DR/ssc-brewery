@@ -34,9 +34,9 @@ public class UserDataLoader implements CommandLineRunner {
 
     private void loadSecurityData() {
 //        create roles
-        Authority admin = authorityRepository.save(Authority.builder().role("ADMIN").build());
-        Authority user = authorityRepository.save(Authority.builder().role("USER").build());
-        Authority customer = authorityRepository.save(Authority.builder().role("CUSTOMER").build());
+        Authority admin = authorityRepository.save(Authority.builder().role("ROLE_ADMIN").build());
+        Authority user = authorityRepository.save(Authority.builder().role("ROLE_USER").build());
+        Authority customer = authorityRepository.save(Authority.builder().role("ROLE_CUSTOMER").build());
 
 //        create users
         userRepository.save(User.builder()
@@ -54,6 +54,13 @@ public class UserDataLoader implements CommandLineRunner {
         userRepository.save(User.builder()
                         .username("customer")
                         .password(passwordEncoder.encode("customerpw")) // weil in H2-MEM-DB gespeichert wird -> password encoder
+                        .authority(customer)                                       // dies ist möglich, weil der User seine Authorities mit @Singular (Lombok) annotiert ist
+                        .build());
+        log.debug("Users loaded: " + userRepository.count());
+
+        userRepository.save(User.builder()
+                        .username("customer2")
+                        .password(passwordEncoder.encode("customer2pw")) // weil in H2-MEM-DB gespeichert wird -> password encoder
                         .authority(customer)                                       // dies ist möglich, weil der User seine Authorities mit @Singular (Lombok) annotiert ist
                         .build());
         log.debug("Users loaded: " + userRepository.count());
