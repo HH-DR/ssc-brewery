@@ -66,17 +66,22 @@ public class Securityconfig extends WebSecurityConfigurerAdapter {
                                     .permitAll() // do not use accessible h2 in production
                             .antMatchers("/", "webjars/**", "/login", "/resources/**")
                                     .permitAll() // antmatcher must be before anyRequests(), **-syntax, resources einbinden z.B. CSS
-                            .antMatchers(HttpMethod.GET, "/api/v1/beer/**")
-                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
-                            .antMatchers("/bbers/find", "/beers*")
-                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
-                            .mvcMatchers(HttpMethod.GET, "/api/v1/beerUpc/{upc}")
-                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
+
+//===== Mit dem Refactoring, das die Authorities, den Roles zuordnet, sind diese Rollenbasierten Freigaben nicht mehr nötig.
+//      Stattdessen wird an den Methoden mit @PreAuthorize("hasAuthority('entityname.authority')") der Zugang geregelt --@PreAuthorize("hasAuthority('beer.read')")
+//===== Der Vorteil ist, dass die konfiogurationsdatei deutlich übersichtlicher wird.
+
+//                            .antMatchers(HttpMethod.GET, "/api/v1/beer/**")
+//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
+//                            .antMatchers("/bbers/find", "/beers*")
+//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
+//                            .mvcMatchers(HttpMethod.GET, "/api/v1/beerUpc/{upc}")
+//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
 //  Sie Authorisierung zur Nutzung der Delete-Methode wurde mit @PreAuthorize direkt an die Methode gelegt => äufgräumtere config-Datei
 //                            .mvcMatchers(HttpMethod.DELETE, "/api/v1/beer/**")
 //                                    .hasRole("ADMIN") // Achtung: nicht ROLE_ADMIN an dieser Stelle
-                            .mvcMatchers(HttpMethod.GET,"brewery/breweries")
-                                    .hasAnyRole("ADMIN", "CUSTOMER")
+//                            .mvcMatchers(HttpMethod.GET,"brewery/breweries")
+//                                    .hasAnyRole("ADMIN", "CUSTOMER")
                             ;
                 })
                 .authorizeRequests()

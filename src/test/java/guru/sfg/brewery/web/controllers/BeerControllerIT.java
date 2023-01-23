@@ -1,6 +1,7 @@
 package guru.sfg.brewery.web.controllers;
 
 import guru.sfg.brewery.repositories.BeerRepository;
+import guru.sfg.brewery.security.permissions.BeerReadPermission;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,6 @@ public class BeerControllerIT extends BaseIT{
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     @Autowired
     BeerRepository beerRepository;
-
 
     @DisplayName("Init New Form - Nested Class")
     @Nested

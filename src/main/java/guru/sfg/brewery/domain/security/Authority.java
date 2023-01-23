@@ -18,8 +18,8 @@ public class Authority {        // im Prinzip aufgebaut wie SimpleGrantedAuthori
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
 
-    private String role;
+    private String permission;
 
-    @ManyToMany(mappedBy = "authorities")   // mappedBy legt die Verantwortung fürs Mapping in die Zuordnung User.authorities
-    private Set<User> users;
+        @ManyToMany(mappedBy = "authorities")   // mappedBy legt die Verantwortung fürs Mapping in die Zuordnung User.authorities
+    private Set<Role> roles;
 }
