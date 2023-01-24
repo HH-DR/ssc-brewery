@@ -1,7 +1,12 @@
 package guru.sfg.brewery.domain.security;
 
+import guru.sfg.brewery.domain.Customer;
 import guru.sfg.brewery.domain.security.Authority;
 import lombok.*;
+import org.springframework.security.core.CredentialsContainer;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import java.util.Set;
@@ -14,7 +19,9 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @Builder
 @Entity
-public class User {             // im Prinzip gebaut wie User von Spring Security - aber nicht erweitert!
+public class User implements UserDetails, CredentialsContainer {             // im Prinzip gebaut wie User von Spring Security - aber nicht erweitert!
+                                // Der User von SpringSecurity implementiert 2 Interfaces
+                                // man kann also auch den eigenen User diese Interfaces implementieren lassen
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -32,19 +39,36 @@ public class User {             // im Prinzip gebaut wie User von Spring Securit
 //    private Set<Authority> authorities;         // Achtung das ist nicht GrantedAuthority, sondern die selbst geschriebene
 
 
-//    neu zum Umbau auf Nutzung von Roles statt Authority
+//    ==== neu zum Umbau auf Nutzung von Roles statt Authority
 //    Die Authorities werden jetzt nicht mehr pro User gespeichert, sondern pro Rolle - die Rollen stehen als Entity zwiscjen User und Authority
 //    deswegen werden die Authorities beim User auf Transient gesetzt und aus den Rollen des Users gestreamt
-    @Transient
-    private Set<Authority> authorities;
+//    @Transient
+//    private Set<Authority> authorities;
+//
+////  Getter für Authorities mit Mapping, weil die Authorities von Rolle des Users bezogen werden
+//    public Set<Authority> getAuthorities() {
+//        return this.roles.stream()
+//                .map(Role::getAuthorities)
+//                .flatMap(Set::stream)
+//                .collect(Collectors.toSet());
+//    }
 
-//  Getter für Authorities mit Mapping, weil die Authorities von Rolle des Users bezogen werden
-    public Set<Authority> getAuthorities() {
+//    NEU zum Umbau mit Implementierung von UserDetails, CredentialsContainer
+//    Set<Authority> verschwindet, und wird durch Set<GrantedAuthority> ersetzt
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    private Customer customer;
+
+    @Transient
+    public Set<GrantedAuthority> getAuthorities() {
         return this.roles.stream()
                 .map(Role::getAuthorities)
                 .flatMap(Set::stream)
+                .map(authority -> {return new SimpleGrantedAuthority(authority.getPermission());}) // Mapping von eigener Authority zu GrantedAuthority
                 .collect(Collectors.toSet());
     }
+
+
 
 
     @Singular // Lombokerweiterung, die es ermöglicht, über das Builder-Pattern eine Authority hinzuzufügen
@@ -56,7 +80,7 @@ public class User {             // im Prinzip gebaut wie User von Spring Securit
     )
     private Set<Role> roles;
 
-    // @Builder.Default Lombok erweiterung
+//     @Builder.Default Lombok erweiterung
     @Builder.Default    // damit bei der Nutzung vom Builder Pattern die Werte nicht null sind, sondern so, wie hier eingestellt
     private boolean accountNonExpired=true;
     @Builder.Default    // damit bei der Nutzung vom Builder Pattern die Werte nicht null sind, sondern so, wie hier eingestellt
@@ -65,4 +89,32 @@ public class User {             // im Prinzip gebaut wie User von Spring Securit
     private boolean credentialsNonExpired=true;
     @Builder.Default    // damit bei der Nutzung vom Builder Pattern die Werte nicht null sind, sondern so, wie hier eingestellt
     private boolean enabled=true;
+
+
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return this.accountNonExpired;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return this.accountNonLocked;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return this.credentialsNonExpired;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+    @Override
+    public void eraseCredentials() {
+        this.password = null;   // das ist die Originalimplementierung von Spring
+    }
+
+
 }

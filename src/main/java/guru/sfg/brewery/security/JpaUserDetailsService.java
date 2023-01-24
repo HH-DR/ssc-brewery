@@ -30,29 +30,33 @@ public class JpaUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
         log.debug("Getting User info via JpaUserDetailsService");
-        User user = userRepository.findByUsername(username).orElseThrow(() ->       // dies ist die eigene Implementierung des Users
+// Umbau vom eigenen User zum User, der UserDetails von Spring implementiert => mapping von Authorities und User wird obsolet
+//        User user = userRepository.findByUsername(username).orElseThrow(() ->       // dies ist die eigene Implementierung des Users
+//        {return new UsernameNotFoundException("User name: " + username + " not found.");
+//        });
+//        return new org.springframework.security.core.userdetails.User(              // hier wird ein SpringFramework User per ctor gebaut
+//                user.getUsername(),user.getPassword(), user.isEnabled(), user.isAccountNonExpired(),user.isCredentialsNonExpired(),
+//                user.isAccountNonLocked(), convertToSpringAuthorities(user.getAuthorities())
+//        );
+//    }
+            return userRepository.findByUsername(username).orElseThrow(() ->
         {return new UsernameNotFoundException("User name: " + username + " not found.");
         });
-        
-        return new org.springframework.security.core.userdetails.User(              // hier wird ein SpringFramework User per ctor gebaut
-                user.getUsername(),user.getPassword(), user.isEnabled(), user.isAccountNonExpired(),user.isCredentialsNonExpired(),
-                user.isAccountNonLocked(), convertToSpringAuthorities(user.getAuthorities())
-        );
     }
 
-//  dies sammelt die SimpleAuthorities vom eigenen User und fügt sie einer Collection<GrantedAuthority> hinzu, die dem Springframeworkuser in den ctor übergeben wird
-    private Collection<? extends GrantedAuthority> convertToSpringAuthorities(Set<Authority> authorities) {
-        if(authorities != null && authorities.size() > 0){
-            return authorities.stream()
-                    .map(Authority::getPermission)
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toSet());
-        } else
-        {
-            return new HashSet<>();
-        }
 
-    }
+// Umbau vom eigenen User zum User, der UserDetails von Spring implementiert => mapping von Authorities und User wird obsolet
+//    private Collection<? extends GrantedAuthority> convertToSpringAuthorities(Set<Authority> authorities) {
+//        if(authorities != null && authorities.size() > 0){
+//            return authorities.stream()
+//                    .map(Authority::getPermission)
+//                    .map(SimpleGrantedAuthority::new)
+//                    .collect(Collectors.toSet());
+//        } else
+//        {
+//            return new HashSet<>();
+//        }
+//    }
 
 
 }
