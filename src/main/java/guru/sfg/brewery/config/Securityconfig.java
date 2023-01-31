@@ -3,6 +3,7 @@ package guru.sfg.brewery.config;
 import guru.sfg.brewery.security.MyPasswordEncoderFactories;
 //    auskommentiert, weil Filter security.RestHeaderAuthFilter auskommentiert wurde
 //import guru.sfg.brewery.security.RestHeaderAuthFilter;
+import lombok.RequiredArgsConstructor;
 import net.bytebuddy.asm.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,17 +26,33 @@ import org.springframework.security.crypto.password.LdapShaPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.password.StandardPasswordEncoder;
+import org.springframework.security.data.repository.query.SecurityEvaluationContextExtension;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
+import org.springframework.web.reactive.config.EnableWebFlux;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import static org.springframework.security.authorization.AuthenticatedReactiveAuthorizationManager.authenticated;
 
+@RequiredArgsConstructor
 @Configuration
 @EnableWebSecurity
 //@EnableGlobalMethodSecurity(securedEnabled = true, prePostEnabled = true)
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class Securityconfig extends WebSecurityConfigurerAdapter {
+
+
+    private final UserDetailsService userDetailsService;
+    private final PersistentTokenRepository persistentTokenRepository;
+
+//    Für die Nutzung von der Dependency Spring-Security-Data muss diese Bean erstellt werden
+    @Bean
+    public SecurityEvaluationContextExtension securityEvaluationContextExtension(){
+        return new SecurityEvaluationContextExtension();
+    }
 
 //    auskommentiert, weil der Filter security.RestHeaderAuthFilter auskommentiert wurde
 //    RestHeaderAuthFilter restHeaderAuthFilter(AuthenticationManager authenticationManager){               // create Filter
@@ -44,58 +61,129 @@ public class Securityconfig extends WebSecurityConfigurerAdapter {
 //        return filter;
 //    }
 
-
-//      Diese Methode aus dem WebSecurityConfigurerAdapter
-//      wird von Spring Security dazu genutzt, den Standard-User anzulegen und die login Form
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-//        super.configure(http);//        kein super() call
-
-//    auskommentiert, weil Filter security.RestHeaderAuthFilter auskommentiert wurde
-////        Adding Custom Filter
-//        http.addFilterBefore(restHeaderAuthFilter(authenticationManager()), // Filter vor Filter… einfügen
-//                UsernamePasswordAuthenticationFilter.class)                // und den aktuellen AuthenticationManager mitgeben
-//                .csrf().disable();                                          // csrf disable, sonst blockiert csrf den Filter
-
-        http.csrf().disable();  // das muss neu gemacht werden, nachdem der security.RestHeaderAuthFilter auskommentiert wurde
 
         http
                 .authorizeRequests(authorize -> {
                     authorize
-                            .antMatchers("/h2-console/**")
-                                    .permitAll() // do not use accessible h2 in production
-                            .antMatchers("/", "webjars/**", "/login", "/resources/**")
-                                    .permitAll() // antmatcher must be before anyRequests(), **-syntax, resources einbinden z.B. CSS
-
-//===== Mit dem Refactoring, das die Authorities, den Roles zuordnet, sind diese Rollenbasierten Freigaben nicht mehr nötig.
-//      Stattdessen wird an den Methoden mit @PreAuthorize("hasAuthority('entityname.authority')") der Zugang geregelt --@PreAuthorize("hasAuthority('beer.read')")
-//===== Der Vorteil ist, dass die konfiogurationsdatei deutlich übersichtlicher wird.
-
-//                            .antMatchers(HttpMethod.GET, "/api/v1/beer/**")
-//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
-//                            .antMatchers("/bbers/find", "/beers*")
-//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
-//                            .mvcMatchers(HttpMethod.GET, "/api/v1/beerUpc/{upc}")
-//                                    .hasAnyRole("ADMIN","CUSTOMER","USER")
-//  Sie Authorisierung zur Nutzung der Delete-Methode wurde mit @PreAuthorize direkt an die Methode gelegt => äufgräumtere config-Datei
-//                            .mvcMatchers(HttpMethod.DELETE, "/api/v1/beer/**")
-//                                    .hasRole("ADMIN") // Achtung: nicht ROLE_ADMIN an dieser Stelle
-//                            .mvcMatchers(HttpMethod.GET,"brewery/breweries")
-//                                    .hasAnyRole("ADMIN", "CUSTOMER")
-                            ;
-                })
+                            .antMatchers("/h2-console/**").permitAll() //do not use in production!
+                            .antMatchers("/", "/webjars/**", "/login","/resources/**").permitAll();
+                } )
                 .authorizeRequests()
-                .anyRequest().authenticated()   // any request must be authenticated
+                .anyRequest().authenticated()
                 .and()
-                .formLogin()                    // create a login page
-                .and()
-                .httpBasic();                   // enable http basic authentication
+                .formLogin(loginConfigurer -> {
+                    loginConfigurer
+                            .loginProcessingUrl("/login")
+                            .loginPage("/").permitAll()
+                            .successForwardUrl("/")
+                            .defaultSuccessUrl("/");
+                })
+                .logout(logoutConfigurer -> {
+                    logoutConfigurer
+                            .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+                            .logoutSuccessUrl("/")
+                            .permitAll();
+                })
+                .httpBasic()
+                .and().csrf().ignoringAntMatchers("/h2-console/**", "/api/**");
 
+//    Remember Me Token: hash based
+        http
+                .rememberMe()
+                .key("thisIsMyKey")
+                .userDetailsService(userDetailsService);
 
-        // configuration to access H2 DB via console - spring security forbids frames by default
+//    Remember Me Token: Persitant token - Problem mit Db - Table schema.sql wird zwar gebaut, aber nicht gefunden => datasource nicht richtig angeschlossen
+//          http
+//                  .rememberMe()
+//                  .tokenRepository(persistentTokenRepository)
+//                  .userDetailsService(userDetailsService);
+
+//h2 console config
         http.headers().frameOptions().sameOrigin();
     }
 
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//      Die Methode protected void configure(HttpSecurity http) aus dem WebSecurityConfigurerAdapter
+//      wird von Spring Security dazu genutzt, den Standard-User anzulegen und die login Form
+//    die unten stehende Variante enthält viel kaputt gespielte Möglichkeiten.
+//    Die oben stehende Variante ist ein Kopie von Spring Guru
+
+//    @Override
+//    protected void configure(HttpSecurity http) throws Exception {
+////        super.configure(http);//        kein super() call
+//
+////    auskommentiert, weil Filter security.RestHeaderAuthFilter auskommentiert wurde
+//////        Adding Custom Filter
+////        http.addFilterBefore(restHeaderAuthFilter(authenticationManager()), // Filter vor Filter… einfügen
+////                UsernamePasswordAuthenticationFilter.class)                // und den aktuellen AuthenticationManager mitgeben
+////                .csrf().disable();                                          // csrf disable, sonst blockiert csrf den Filter
+//
+////        http.csrf().disable();  // disables csrf-protection globally  -----das muss neu gemacht werden, nachdem der security.RestHeaderAuthFilter auskommentiert wurde
+//        http    .csrf().ignoringAntMatchers("/h2-console/**", "/api/**"); // disables csrf-protection for specific endpoints
+//
+//        http
+//                .authorizeRequests(authorize -> {
+//                    authorize
+//                            .antMatchers("/h2-console/**").permitAll()                              // do not use accessible h2 in production
+//                            .antMatchers("/", "webjars/**", "/login", "/login.html","/resources/**").permitAll()  // antmatcher must be before anyRequests(), **-syntax, resources einbinden z.B. CSS
+//
+////===== Mit dem Refactoring, das die Authorities, den Roles zuordnet, sind diese Rollenbasierten Freigaben nicht mehr nötig.
+////      Stattdessen wird an den Methoden mit @PreAuthorize("hasAuthority('entityname.authority')") der Zugang geregelt --@PreAuthorize("hasAuthority('beer.read')")
+////===== Der Vorteil ist, dass die konfiogurationsdatei deutlich übersichtlicher wird.
+//
+////                            .antMatchers(HttpMethod.GET, "/api/v1/beer/**").hasAnyRole("ADMIN","CUSTOMER","USER")
+////                            .antMatchers("/bbers/find", "/beers*").hasAnyRole("ADMIN","CUSTOMER","USER")
+////                            .mvcMatchers(HttpMethod.GET, "/api/v1/beerUpc/{upc}").hasAnyRole("ADMIN","CUSTOMER","USER")
+////  Die Authorisierung zur Nutzung der Delete-Methode wurde mit @PreAuthorize direkt an die Methode gelegt => äufgräumtere config-Datei
+////                            .mvcMatchers(HttpMethod.DELETE, "/api/v1/beer/**").hasRole("ADMIN") // Achtung: nicht ROLE_ADMIN an dieser Stelle
+////                            .mvcMatchers(HttpMethod.GET,"brewery/breweries").hasAnyRole("ADMIN", "CUSTOMER")
+//                            ;
+//                })
+//                .authorizeRequests()
+//                .anyRequest().authenticated()   // any request must be authenticated
+//                .and()
+//                .formLogin(loginConfigurer -> {
+//                    loginConfigurer
+////                            .loginProcessingUrl("/login")
+////                            .loginProcessingUrl("/login.html")
+//                            .loginProcessingUrl("/")
+//                            .loginPage("/login")
+//                            .successForwardUrl("/")
+//                            .defaultSuccessUrl("/")
+//                            .failureUrl("/?error") // dieser parameter kann in der html page so genutzt werden: <p th:if="${param.error}" class="alert alert-danger" >Wrong username or password</p>
+//                            .permitAll();
+//                })  .logout(logoutConfigurer ->
+//                        logoutConfigurer
+//                                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
+//                                .logoutSuccessUrl("/?logout") // dieser parameter kann in der html page so genutzt werden: <p th:if="${param.logout}" class="alert alert-success" >You have logged out.</p>
+//                                .permitAll()
+//                )
+//                .httpBasic();                   // enable http basic authentication
+//
+////    Remember Me cookiedefinition
+//        http
+//                .rememberMe()
+//                .key("thisIsMyKey")
+//                .userDetailsService(userDetailsService);
+//
+//
+//        // configuration to access H2 DB via console - spring security forbids frames by default
+//        http.headers().frameOptions().sameOrigin();
+//
+//    }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
     // =========================================================================================================================
     // Um nicht die Autoconfiguration für User von SpringSecurity oder die UserConfiguration in application.properties zu nutzen,
     // kann man User auch über die zwei folgenden Varianten erstellen.
@@ -154,9 +242,11 @@ public class Securityconfig extends WebSecurityConfigurerAdapter {
 //                .password("{bcrypt}")
 //                .roles("CUSTOMER");
 //    }
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 //    Im nächsten Schritt kann ein PasswordEncoder eingesetzt werden, dann muss aber der Eintrag {noop} aus der password - Zeile entfernt werden
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -200,13 +290,9 @@ public class Securityconfig extends WebSecurityConfigurerAdapter {
 //    JPA macht aber alle Calls von sich aus transactional - also ist der Context beim Aufruf der convert-Methode geschlossen.
 //    Eine lösungs-Möglichkeit ist: Den Aufrauf der aussenliegenden Methode loadUserByUsername() auch transactional zu machen,
 //    dann kümmert sich nämlich Spring darum, dass eine entsprechende Bean "eagerly" bereitgestellt wird.
-
-
-
-
-
     }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 

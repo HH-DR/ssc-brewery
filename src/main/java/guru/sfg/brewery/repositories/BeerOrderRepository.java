@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
 
 import javax.persistence.LockModeType;
 import java.util.List;
@@ -37,6 +38,17 @@ public interface BeerOrderRepository  extends JpaRepository<BeerOrder, UUID> {
 
     List<BeerOrder> findAllByOrderStatus(OrderStatusEnum orderStatusEnum);
 
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     BeerOrder findOneById(UUID id);
+
+//    Das ist keine Standard Implementierung von JPA, deswegen muss die Query definiert werden
+//    1. SELECT order FROM WHERE ist normales SQL
+//    2. order.id =?1 bezieht sich auf den Parameter 1 der Methode - also die orderId
+//    3. :#{hasAuthority(('order.read'))} Der : sagt hibernate, dass die Methode hasAuthority der Spring Expression Language aufgerufen werden soll
+//    Ohne den : würde hibernate den folgenden Text als String interpretieren
+//
+    @Query("SELECT order FROM BeerOrder order WHERE order.id =?1 " +
+            "AND (true = :#{hasAuthority('order.read')} OR order.customer.id = ?#{principal?.customer?.id})")
+    BeerOrder findOrderBySecure(UUID orderId);
 }

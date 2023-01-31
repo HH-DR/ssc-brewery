@@ -30,6 +30,9 @@ public interface BeerOrderService {
     BeerOrderDto placeOrder(UUID customerId, BeerOrderDto beerOrderDto);
 
     BeerOrderDto getOrderById(UUID customerId, UUID orderId);
+    BeerOrderDto getOrderById(UUID orderId);
 
     void pickupOrder(UUID customerId, UUID orderId);
+
+    BeerOrderPagedList listOrders(Pageable pageable);
 }

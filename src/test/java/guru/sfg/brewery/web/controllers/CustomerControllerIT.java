@@ -6,8 +6,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.annotation.Rollback;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -34,6 +36,7 @@ public class CustomerControllerIT extends BaseIT {
         @MethodSource("guru.sfg.brewery.web.controllers.BeerControllerIT#getStreamNotAdmin")
         void processCreationFormWrongAuth(String user, String pwd) throws Exception {
             mockMvc.perform(post("/customers/new")
+                            .with(csrf())
                             .param("customerName", "Bill Board")
                             .with(httpBasic(user, pwd)))
                     .andExpect(status().isForbidden());
@@ -42,6 +45,7 @@ public class CustomerControllerIT extends BaseIT {
         @Test
         void processCreationFormNoAuth() throws Exception {
             mockMvc.perform(post("/customers/new")
+                            .with(csrf())
                             .param("customerName", "Bill Board"))
                     .andExpect(status().isUnauthorized());
         }
